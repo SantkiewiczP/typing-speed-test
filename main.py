@@ -1,4 +1,5 @@
 import random
+import threading
 from tkinter import *
 
 BACKGROUND_COLOR = "#FFEBC9"
@@ -36,7 +37,7 @@ class TypingSpeed:
         self.prompt.pack()
 
         # Timer/Result Label
-        self.seconds = 90
+        self.seconds = 10
         self.timer_label = Label(text=f"TIMER: {self.seconds}", bg=BACKGROUND_COLOR, fg=TIMER_COLOR,
                                  font=(FONT_NAME, 40, "bold"), padx=50, pady=10)
         self.timer_label.pack()
@@ -56,6 +57,14 @@ class TypingSpeed:
         self.reset_button = Button(text="Reset", font=(FONT_NAME, 15, "bold"), bg=BUTTON_COLOR, fg=TIMER_COLOR,
                                    command=self.reset, state="disabled")
         self.reset_button.pack(padx=10, pady=10)
+
+        # Create lines
+        self.current_sentence_index = 0
+        with open('paragraphs.txt') as file:
+            self.lines = file.readlines()
+            random.shuffle(self.lines)
+
+        self.correct_words = 0
 
     # Reset the test
     def reset(self):
@@ -77,10 +86,10 @@ class TypingSpeed:
             timer = self.window.after(1000, self.countdown, count - 1)
         else:
             self.collect_data()
-
             self.start_button.config(state="active")
             self.reset_button.config(state="disabled")
             self.user_input.config(state="disabled")
+            self.results()
 
     # Start timer and disable/enable buttons
     def start_countdown(self):
@@ -92,34 +101,29 @@ class TypingSpeed:
         self.reset_button['state'] = 'active'
 
     # Choose a random sentence from the text file
-    def random_sentence(self):
-        with open('paragraphs.txt') as file:
-            lines = file.readlines()
-            random_line = random.choice(lines)
-        n = [sentence for sentence in lines if sentence != random_line]
-        return random_line
+    def next_sentence(self):
+        next_sentence = self.lines[self.current_sentence_index]
+        self.current_sentence_index += 1
+        if self.current_sentence_index >= len(self.lines):
+            self.current_sentence_index = 0
+        return next_sentence
 
     # Display new random sentence
     def new_sentence(self, event):
-        self.prompt.config(text=self.random_sentence())
+        self.prompt.config(text=self.next_sentence())
         self.collect_data()
         self.user_input.delete("1.0", END)
 
     def collect_data(self):
         prompt_words = self.prompt.cget("text").split()
-        for word in prompt_words:
-            self.prompt_list.append(word)
         user_words = self.user_input.get("1.0", END).split()
-        for words in user_words:
-            self.user_list.append(words)
+        for i in range(0, len(user_words)):
+            if str.lower(prompt_words[i]) == str.lower(user_words[i]):
+                self.correct_words += 1
 
     # Calculate the result
     def results(self):
-        result = 0
-        for word in self.user_list:
-            if word in self.prompt_list:
-                result += 1
-        self.timer_label.config(text=f"Your result is: {round((result / 1.5), 2)} words per minute.",
+        self.timer_label.config(text=f"Your result is: {round((self.correct_words / (self.seconds / 60)), 2)} words per minute.",
                                 font=(FONT_NAME, 40, "bold"), bg=BACKGROUND_COLOR, fg=TIMER_COLOR)
 
 
